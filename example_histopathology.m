@@ -12,7 +12,7 @@ probabilities;
 % unsupervised segmentations of the HE data
 segmentations;
 % image of gradients
-gradient_image;
+weight_image;
 %%
 % subsampling of the original image to account for the patch-based
 % probabilities
@@ -35,7 +35,7 @@ imshow(d0,[]);colormap('jet')
 title(['GTV only. Acc = ' num2str(mean(d0(:) == ground_truth(:)))]);
 %% VTV only
 Z0 = segsalsa(probabilities,mu,iterations,...
-    'VTV',1,'tau_vtv',10,'weight_image',gradient_image);
+    'VTV',1,'tau_vtv',10,'weight_image',weight_image);
 [c0,d0] = max(Z0,[],3);
 
 figure(124)
@@ -43,7 +43,7 @@ imshow(d0,[]);colormap('jet')
 title(['GTV only. Acc = ' num2str(mean(d0(:) == ground_truth(:)))]);
 %% GTV and VTV
 Z0 = segsalsa(probabilities,mu,iterations,...
-    'VTV',1,'tau_vtv',10/2,'weight_image',gradient_image,...
+    'VTV',1,'tau_vtv',10/2,'weight_image',weight_image,...
     'GTV',1,'tau_gtv',[1 2 5 10]/2,'clusters',segmentations);
 [c0,d0] = max(Z0,[],3);
 
