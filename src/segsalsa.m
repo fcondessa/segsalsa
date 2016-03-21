@@ -12,12 +12,19 @@ n = nr*nc;
 %set default flags
 FLAG_GTV =0;
 FLAG_VTV = 0;
+FLAG_STR = 0;
 FLAG_VIS = 1;
 %set default arguments
 no_segmentations = 0;
 tau_vtv = 10;
 tau_gtv = 1;
-weight_image = ones(nr,nc);
+tau_str = 1;
+gamma_str = 1;
+Lk = 5;
+weight_image_vtv = ones(nr,nc);
+weight_image_vtv = weight_image_vtv(:)';
+weight_image_str = ones(nr,nc);
+weight_image_str = weight_image_str(:)';
 clusters = [];
 
 nVarargs = length(varargin);
@@ -31,16 +38,28 @@ for i = 1:2:nVarargs,
             FLAG_GTV = arg_val;
         case 'VTV',
             FLAG_VTV = arg_val;            
+        case 'STR',
+            FLAG_STR = arg_val;                
+        case 'VIS',
+            FLAG_VIS = arg_val;
         case 'tau_vtv',
             tau_vtv = arg_val;            
         case 'tau_gtv',
             tau_gtv = arg_val;
-            
-        case 'weight_image',
-            weight_image = arg_val;
-            weight_image = weight_image(:)';
+        case 'tau_str',
+            tau_str = arg_val;    
+        case 'gamma_str',
+            gamma_str = arg_val;
+        case 'window_str',
+            Lk = arg_val;
+        case 'weight_image_vtv',
+            weight_image_vtv = arg_val;
+            weight_image_vtv = weight_image_vtv(:)';
+        case 'weight_image_str',
+            weight_image_str = arg_val;
+            weight_image_str = weight_image_str(:)';
         case 'clusters',
-            clusters = arg_val;            
+            clusters = arg_val;           
     end
 end
 
@@ -56,9 +75,11 @@ clusters = reshape(clusters,n,no_segmentations);
 end
 
 
+weight_image_vtv(1,:) = 0;
+weight_image_vtv(:,1) = 0;
+weight_image_str(1,:) = 0;
+weight_image_str(:,1) = 0;
 
-weight_image(1,:) = 0;
-weight_image(:,1) = 0;
 aux_t1 = ones(no_classes,n,no_segmentations);
 for i = 1:no_segmentations,
     aux_t1(:,:,i) = 2* aux_t1(:,:,i)*tau_gtv(i) / mu;
@@ -82,6 +103,22 @@ FDH = fft2(dh);
 FDHC = conj(FDH);
 FDV = fft2(dv);
 FDVC = conj(FDV);
+
+FDH_STR = zeros(size(dh));
+FDV_STR = zeros(size(dv));
+if FLAG_STR,
+    [X,Y] = meshgrid(-Lk:Lk);
+    K = exp(-(X.^2+Y.^2)/gamma_str);
+    L = length(K(:));
+    for i = 1:L,
+        FDH_STR = FDH_STR + tau_str * K(i) * fft2(circshift(dh,[X(i) Y(i)]));
+        FDV_STR = FDV_STR + tau_str * K(i) * fft2(circshift(dv,[X(i) Y(i)]));
+        FDH1_STR{i} = tau_str * K(i)*fft2(circshift(dh,[X(i) Y(i)]));
+        FDV1_STR{i} = tau_str * K(i)*fft2(circshift(dv,[X(i) Y(i)]));
+    end
+end
+FDHC_STR = conj(FDH_STR);
+FDHV_STR = conj(FDV_STR);
 %%  define normalization filters in the frequency domain
 
 num_ids_ops = 3;
@@ -89,10 +126,10 @@ if FLAG_GTV,
     num_ids_ops = num_ids_ops + no_segmentations;
 end
 
-
-I_DH = FDHC ./(FLAG_VTV*(abs(FDH).^2+ abs(FDV).^2 )+ num_ids_ops);
-I_DV = FDVC ./(FLAG_VTV*(abs(FDH).^2+ abs(FDV).^2) + num_ids_ops);
-II   = 1  ./(FLAG_VTV*(abs(FDH).^2+ abs(FDV).^2) + num_ids_ops);
+norm_filt = (FLAG_VTV*(abs(FDH).^2+ abs(FDV).^2 )+ num_ids_ops + FLAG_STR*(abs(FDV_STR).^2 + abs(FDH_STR).^2));
+I_DH = FDHC ./norm_filt;
+I_DV = FDVC ./norm_filt;
+II   = 1  ./norm_filt;
 FDH = ifft2(I_DH);
 FDV = ifft2(I_DV);
 FI  = ifft2(II);
@@ -123,7 +160,12 @@ V_gtv_prior = repmat(Z,[1,1,no_segmentations]);
 D_gtv_prior = 0*V_gtv_prior;
 end
 
-
+if FLAG_STR,
+    V_str_prior_vt_comp = 1*repmat(Z,[L,1,1]);
+    V_str_prior_hz_comp = 1*repmat(Z,[L,1,1]);
+    D_str_prior_vt_comp = 0*V_str_prior_vt_comp;
+    D_str_prior_hz_comp = 0*V_str_prior_hz_comp;
+end
 for i=1:iters
 
 % solve quadratic problem
@@ -141,6 +183,15 @@ if FLAG_VTV,
     Z = Z + ConvC(V_vtv_prior_hz_comp+D_vtv_prior_hz_comp, I_DH,no_classes) + ...
         ConvC(V_vtv_prior_vt_comp+D_vtv_prior_vt_comp, I_DV,no_classes);
 end
+
+if FLAG_STR,
+    for j = 1:L,
+        Z = Z + circshift(ConvC(circshift(reshape(V_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),-[X(j) Y(j)]), conj(FDV1_STR{j})./(norm_filt),no_classes),[X(j) Y(j)])/L;
+        Z = Z + circshift(ConvC(circshift(reshape(V_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),-[X(j) Y(j)]), conj(FDH1_STR{j})./(norm_filt),no_classes),[X(j) Y(j)])/L;
+    end
+end
+
+
 % solve split variables
 % data term
 NU_data = Z-D_data;
@@ -160,7 +211,7 @@ if FLAG_VTV,
     NU_vtv_prior_hz_comp = (ConvC(Z,FDH,no_classes) - D_vtv_prior_hz_comp);
     NU_vtv_prior_vt_comp = (ConvC(Z,FDV,no_classes) - D_vtv_prior_vt_comp);
     V_VTV = compute_prox(cat(3,NU_vtv_prior_hz_comp,NU_vtv_prior_vt_comp),...
-        'VTV',mu,dims,tau_vtv,weight_image);
+        'VTV',mu,dims,tau_vtv,weight_image_vtv);
     V_vtv_prior_hz_comp = V_VTV(:,:,1);
     V_vtv_prior_vt_comp = V_VTV(:,:,2);
     D_vtv_prior_hz_comp = -NU_vtv_prior_hz_comp + V_vtv_prior_hz_comp;
@@ -173,6 +224,19 @@ if FLAG_GTV,
     V_gtv_prior = compute_prox(NU_gtv_prior,...
         'GTV',mu,dims,aux_t1,clusters);
     D_gtv_prior = -NU_gtv_prior + V_gtv_prior;
+end
+
+% STR prior
+if FLAG_STR,
+    [outx,outy] = patch_jacobian(Z,nr,nc,no_classes,Lk,gamma_str);
+    NU_str_prior_vt_comp = reshape(outx,n,no_classes*L)' - D_str_prior_vt_comp;
+    NU_str_prior_hz_comp = reshape(outy,n,no_classes*L)' - D_str_prior_hz_comp;
+    V_STR = compute_prox(cat(3,NU_str_prior_hz_comp,NU_str_prior_vt_comp),...
+        'VTV',mu,dims,tau_str,weight_image_str);
+    V_str_prior_hz_comp = V_STR(:,:,1);
+    V_str_prior_vt_comp = V_STR(:,:,2);
+    D_str_prior_vt_comp = -NU_str_prior_vt_comp + V_str_prior_vt_comp;
+    D_str_prior_hz_comp = -NU_str_prior_hz_comp + V_str_prior_hz_comp;
 end
 
 if FLAG_VIS

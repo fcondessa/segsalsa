@@ -19,6 +19,9 @@ switch prox_type
     case 'VTV',
         [Vout_h,Vout_v] = vector_soft_col_iso(NUinp(:,:,1),NUinp(:,:,2),varargin{1}/mu*varargin{2}); 
         Vout = cat(3,Vout_h,Vout_v);
+    case 'STR',
+        [Vout_h,Vout_v] = schatten_reg(NUinp(:,:,1),NUinp(:,:,2),varargin{1}/mu*varargin{2}); 
+        Vout = cat(3,Vout_h,Vout_v);        
     case 'GTV'
         FNUaux = zeros(size(NUinp));
         for cluster_id = 1:no_segmentations,
