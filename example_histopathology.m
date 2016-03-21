@@ -1,5 +1,4 @@
 % fcondessa
-% 2016.03.20
 % script showing the usage of Graph-SegSALSA on histopathology data
 addpath('data')
 addpath('src')
@@ -23,7 +22,7 @@ ground_truth = reshape(ground_truth,size(imageData.roiMask(1:step:end,1:step:end
 
 %% local clusters
 % parameter definition
-iterations = 5;
+iterations = 10;
 mu = 10;
 %% GTV only
 Z0 = segsalsa(probabilities,mu,iterations,...
@@ -73,8 +72,8 @@ title(['STR and VTV Acc = ' num2str(mean(d0(:) == ground_truth(:)))]);
 
 %% STR and GTV
 Z0 = segsalsa(probabilities,mu,iterations,...
-    'STR',1,'tau_str',1,'weight_image_str',weight_image,'gamma_str',1,'window_str',2,...
-    'GTV',1,'tau_gtv',[1 2 5 10]/2,'clusters',segmentations,'VIS',0);
+    'STR',1,'tau_str',0.1,'weight_image_str',weight_image,'gamma_str',1,'window_str',2,...
+    'GTV',1,'tau_gtv',[1 2 5 10]/2,'clusters',segmentations,'VIS',1);
 [c0,d0] = max(Z0,[],3);
 
 figure(128)
