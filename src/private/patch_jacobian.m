@@ -7,8 +7,14 @@ outx = zeros(nr,nc,no_classes*L);
 outy = zeros(nr,nc,no_classes*L);
 [prex,prey] = gradient(reshape(Z',[nr,nc,no_classes]));
 for j = 1:L;
+%     for i = 1:no_classes,
+%         outx(:,:,(j-1)*no_classes + i) = K(j) * circshift(prex(:,:,i),-[X(j),Y(j)]);
+%         outy(:,:,(j-1)*no_classes + i) = K(j) * circshift(prey(:,:,i),-[X(j),Y(j)]);
+%     end
+
     for i = 1:no_classes,
-        outx(:,:,(j-1)*no_classes + i) = K(j) * circshift(prex(:,:,i),[X(j),Y(j)]);
-        outy(:,:,(j-1)*no_classes + i) = K(j) * circshift(prey(:,:,i),[X(j),Y(j)]);
+        outx(:,:,(j-1)*no_classes + (1 : no_classes)) = K(j) * circshift(prex,-[X(j),Y(j)]);
+        outy(:,:,(j-1)*no_classes + (1 : no_classes)) = K(j) * circshift(prey,-[X(j),Y(j)]);
     end
+
 end

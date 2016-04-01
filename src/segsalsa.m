@@ -20,7 +20,8 @@ tau_vtv = 10;
 tau_gtv = 1;
 tau_str = 1;
 gamma_str = 1;
-Lk = 5;
+Lk = 1;
+L = (2*Lk+1)^2;
 weight_image_vtv = ones(nr,nc);
 weight_image_vtv = weight_image_vtv(:)';
 weight_image_str = ones(nr,nc);
@@ -74,9 +75,10 @@ clusters = reshape(clusters,n,no_segmentations);
     end
 end
 
-
+weight_image_vtv = reshape(weight_image_vtv,nr,nc);
 weight_image_vtv(1,:) = 0;
 weight_image_vtv(:,1) = 0;
+weight_image_str = reshape(weight_image_str,nr,nc);
 weight_image_str(1,:) = 0;
 weight_image_str(:,1) = 0;
 
@@ -109,6 +111,7 @@ FDV_STR = zeros(size(dv));
 if FLAG_STR,
     [X,Y] = meshgrid(-Lk:Lk);
     K = exp(-(X.^2+Y.^2)/gamma_str);
+    K = K/max(K(:));
     L = length(K(:));
     for i = 1:L,
         FDH_STR = FDH_STR + tau_str * K(i) * fft2(circshift(dh,[X(i) Y(i)]));
@@ -126,7 +129,7 @@ if FLAG_GTV,
     num_ids_ops = num_ids_ops + no_segmentations;
 end
 
-norm_filt = (FLAG_VTV*(abs(FDH).^2+ abs(FDV).^2 )+ num_ids_ops + FLAG_STR*(abs(FDV_STR).^2 + abs(FDH_STR).^2));
+norm_filt = (FLAG_VTV*(abs(FDH).^2+ abs(FDV).^2 )+ num_ids_ops + FLAG_STR*(abs(FDV_STR).^2 + abs(FDH_STR).^2)/L);
 I_DH = FDHC ./norm_filt;
 I_DV = FDVC ./norm_filt;
 II   = 1  ./norm_filt;
@@ -186,8 +189,15 @@ end
 
 if FLAG_STR,
     for j = 1:L,
-        Z = Z + circshift(ConvC(circshift(reshape(V_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),-[X(j) Y(j)]), conj(FDV1_STR{j})./(norm_filt),no_classes),[X(j) Y(j)])/L;
-        Z = Z + circshift(ConvC(circshift(reshape(V_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),-[X(j) Y(j)]), conj(FDH1_STR{j})./(norm_filt),no_classes),[X(j) Y(j)])/L;
+%         a = circshift(ConvC(circshift(reshape(V_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),[X(j) Y(j)]), conj(FDV1_STR{j})./(norm_filt),no_classes),[X(j) -Y(j)])/L;
+%         b = circshift(ConvC(circshift(reshape(V_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),[X(j) Y(j)]), conj(FDH1_STR{j})./(norm_filt),no_classes),[X(j) -Y(j)])/L;
+%         subplot(1,2,1);imagesc(reshape(a(1,:),nr,nc));
+%         subplot(1,2,2);imagesc(reshape(b(1,:),nr,nc));
+%         pause(.1);
+        Z = Z + circshift(ConvC(reshape(V_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]), conj(FDV1_STR{j})./(norm_filt),no_classes),-[X(j) Y(j)])/L;
+        Z = Z + circshift(ConvC(reshape(V_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]), conj(FDH1_STR{j})./(norm_filt),no_classes),-[X(j) Y(j)])/L;
+        %Z = Z + circshift(ConvC(circshift(reshape(V_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_vt_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),[X(j) Y(j)]), conj(FDV1_STR{j})./(norm_filt),no_classes),-[X(j) Y(j)])/L;
+        %Z = Z + circshift(ConvC(circshift(reshape(V_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:)+D_str_prior_hz_comp((j-1)*no_classes+(1:no_classes),:),[no_classes,nc*nr]),[X(j) Y(j)]), conj(FDH1_STR{j})./(norm_filt),no_classes),-[X(j) Y(j)])/L;
     end
 end
 
@@ -211,7 +221,7 @@ if FLAG_VTV,
     NU_vtv_prior_hz_comp = (ConvC(Z,FDH,no_classes) - D_vtv_prior_hz_comp);
     NU_vtv_prior_vt_comp = (ConvC(Z,FDV,no_classes) - D_vtv_prior_vt_comp);
     V_VTV = compute_prox(cat(3,NU_vtv_prior_hz_comp,NU_vtv_prior_vt_comp),...
-        'VTV',mu,dims,tau_vtv,weight_image_vtv);
+        'VTV',mu,dims,tau_vtv,weight_image_vtv(:)');
     V_vtv_prior_hz_comp = V_VTV(:,:,1);
     V_vtv_prior_vt_comp = V_VTV(:,:,2);
     D_vtv_prior_hz_comp = -NU_vtv_prior_hz_comp + V_vtv_prior_hz_comp;
@@ -231,10 +241,13 @@ if FLAG_STR,
     [outx,outy] = patch_jacobian(Z,nr,nc,no_classes,Lk,gamma_str);
     NU_str_prior_vt_comp = reshape(outx,n,no_classes*L)' - D_str_prior_vt_comp;
     NU_str_prior_hz_comp = reshape(outy,n,no_classes*L)' - D_str_prior_hz_comp;
-    V_STR = compute_prox(cat(3,NU_str_prior_hz_comp,NU_str_prior_vt_comp),...
-        'VTV',mu,dims,tau_str,weight_image_str);
-    V_str_prior_hz_comp = V_STR(:,:,1);
-    V_str_prior_vt_comp = V_STR(:,:,2);
+    V_STR = compute_prox(cat(3,NU_str_prior_hz_comp',NU_str_prior_vt_comp'),...
+        'STR',mu,dims,tau_str,weight_image_str(:));
+    V_str_prior_hz_comp = V_STR(:,:,1)';
+    V_str_prior_vt_comp = V_STR(:,:,2)';
+    
+%     plot(NU_str_prior_hz_comp(:)-V_str_prior_hz_comp(:));
+%     pause;
     D_str_prior_vt_comp = -NU_str_prior_vt_comp + V_str_prior_vt_comp;
     D_str_prior_hz_comp = -NU_str_prior_hz_comp + V_str_prior_hz_comp;
 end
