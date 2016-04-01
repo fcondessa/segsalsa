@@ -51,8 +51,8 @@ imshow(d0,[]);colormap('jet')
 title(['GTV and VTV. Acc = ' num2str(mean(d0(:) == ground_truth(:)))]);
 
 %% STR only
-Z0 = segsalsa(probabilities,mu,iterations,...
-    'STR',1,'tau_str',1,'weight_image_str',weight_image,'gamma_str',1,'window_str',2,'VIS',0);
+Z0 = segsalsa(probabilities,mu,20,...
+    'STR',1,'tau_str',.5,'weight_image_str',weight_image,'gamma_str',10,'window_str',1,'VIS',1);
 [c0,d0] = max(Z0,[],3);
 
 figure(126)
