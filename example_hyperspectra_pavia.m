@@ -5,7 +5,6 @@ addpath('src')
 %% load image
 % Indian Pine scene
 % 10 samples per class with LORSAL-MRL classifier
-%load('hyperspectral_data.mat')
 load('hyperspectral_pavia.mat')
 % false color composition of the image
 false_color_image;
@@ -20,7 +19,7 @@ weight_image;
 szimg = size(false_color_image);
 [X1,Y1] = gradient(double(mask));
 delim = X1|Y1;
-
+white = cat(3,ones(szimg(1),szimg(2)),ones(szimg(1),szimg(2)),ones(szimg(1),szimg(2)));
 
 %% local clusters
 % parameter definition
@@ -35,7 +34,6 @@ Z0 = segsalsa(probabilities,mu,iterations,...
 figure(123)
 imshow(d0,[0 size(probabilities,3)+1]);colormap(colormap_hsv)
 hold on;
-white = cat(3,ones(szimg(1),szimg(2)),ones(szimg(1),szimg(2)),ones(szimg(1),szimg(2)));
 h= imshow(white);
 hold off;
 set(h,'AlphaData',delim)
