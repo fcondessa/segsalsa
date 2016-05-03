@@ -3,11 +3,12 @@
 addpath('data')
 addpath('src')
 addpath('ext/SLIC_mex')
-addpath('/Users/filipe/work/code/segm_data');
+%addpath('/Users/filipe/work/code/segm_data');
 %%
-%load('data120.mat');
-load('data2.mat');
-%load('data92.mat');
+%load Graz benchmark
+%load('graz_data120.mat');
+load('graz_data2.mat');
+%load('graz_data92.mat');
 %%
 
 [clusters50r, ~] = slicmex(image,100,20);
