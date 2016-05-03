@@ -9,7 +9,8 @@
 % FJCC 2015.12.03
 function h1 = overimposeimage(image,labelmap,scrible,alpha_val,colo)
 alpha_map = alpha_val * ones(size(image,1),size(image,2));
-enlarge_scrible = 2;
+%enlarge_scrible = 2;
+enlarge_scrible = 5;
 
 % IF scrible goes from -1 to K-1
 scrib_mask = imdilate(scrible ~= -1,ones(enlarge_scrible));
