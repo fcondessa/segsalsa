@@ -1,7 +1,10 @@
 % fcondessa@gmail.com
-
-
-
+% SegSALSA family of algorihms
+% P should be a nr x nc x no_classes probability image with nr x nc pixels
+% and no_classes classes
+% mu corresponds to the optimization parameter associated with the variable
+% splitting
+% iters corresponds to the number of iterations
 function Zim = segsalsa(P,mu,iters,varargin)
 
 [nr,nc,no_classes] = size(P);
